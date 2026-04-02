@@ -7,3 +7,4 @@ yt-dlp-cache/
 *.tar
 deploy.ps1
 docker-compose.graylog.yml
+/.claude
