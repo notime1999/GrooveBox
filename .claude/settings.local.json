@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(node_modules/youtube-dl-exec/bin/yt-dlp.exe --version)",
+      "Bash(node_modules/youtube-dl-exec/bin/yt-dlp.exe -U)",
+      "Bash(node_modules/youtube-dl-exec/bin/yt-dlp.exe --list-formats --extractor-args \"youtube:player_client=ios\" \"https://www.youtube.com/watch?v=9L7BRU4qEJ8\")",
+      "Bash(node_modules/youtube-dl-exec/bin/yt-dlp.exe --list-formats --extractor-args \"youtube:player_client=mweb\" \"https://www.youtube.com/watch?v=9L7BRU4qEJ8\")",
+      "Bash(node_modules/youtube-dl-exec/bin/yt-dlp.exe --list-formats --extractor-args \"youtube:player_client=android_vr\" \"https://www.youtube.com/watch?v=SkDdHMVLWzc\")",
+      "Bash(node_modules/youtube-dl-exec/bin/yt-dlp.exe --list-formats --extractor-args \"youtube:player_client=web_embedded\" \"https://www.youtube.com/watch?v=SkDdHMVLWzc\")",
+      "Bash(node_modules/youtube-dl-exec/bin/yt-dlp.exe -f \"bestaudio\" --extractor-args \"youtube:player_client=android_vr\" -o - \"https://www.youtube.com/watch?v=SkDdHMVLWzc\")",
+      "Bash(npm run:*)",
+      "Bash(node -e ':*)",
+      "Bash(powershell -Command \"Get-NetFirewallRule | Where-Object DisplayName -like '*node*' | Select-Object DisplayName, Direction, Action, Enabled | Format-Table\")",
+      "Bash(npm install:*)",
+      "Bash(node -e \"const p = require\\('./node_modules/@discordjs/voice/package.json'\\); console.log\\('version:', p.version\\); console.log\\('optDeps:', JSON.stringify\\(p.optionalDependencies\\)\\); console.log\\('peerDeps:', JSON.stringify\\(p.peerDependencies\\)\\);\")",
+      "Bash(npm show:*)",
+      "Bash(node -e \"const d=JSON.parse\\(require\\('fs'\\).readFileSync\\('/dev/stdin','utf8'\\)\\); console.log\\('Latest versions:', d.slice\\(-10\\).join\\(', '\\)\\);\")",
+      "Bash(npm view:*)",
+      "Bash(node -e \"console.log\\(require\\('./node_modules/@discordjs/voice/package.json'\\).version\\)\")",
+      "Bash(find src:*)",
+      "Bash(du -h src/* src/**/*)",
+      "Bash(wc -l src/**/*.ts src/*.ts)",
+      "Bash(grep -E \"\\\\.js$|\\\\.txt$|\\\\.yml$|Dockerfile\")"
+    ]
+  }
+}

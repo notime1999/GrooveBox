@@ -1,0 +1,20 @@
+services:
+  discord-bot:
+    image: groovebox:latest
+    container_name: groovebox
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DISCORD_TOKEN: ""
+      SPOTIFY_CLIENT_ID: ""
+      SPOTIFY_CLIENT_SECRET: ""
+      DISCORD_CLIENT_ID: ""
+      DISCORD_GUILD_ID: ""
+
+    # Optional: enable GELF logging to Graylog
+    # logging:
+    #   driver: gelf
+    #   options:
+    #     gelf-address: "udp://<your-graylog-ip>:12201"
+    #     tag: "groovebox"

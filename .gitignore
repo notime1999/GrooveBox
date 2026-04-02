@@ -1,0 +1,9 @@
+.env
+/node_modules
+/dist
+*.txt
+*-player-script.js
+yt-dlp-cache/
+*.tar
+deploy.ps1
+docker-compose.graylog.yml
