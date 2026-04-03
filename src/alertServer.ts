@@ -14,7 +14,7 @@ export function startAlertServer(client: Client) {
         }
 
         const url = new URL(req.url, `http://localhost:${ALERT_PORT}`);
-        const message = url.searchParams.get('message') || 'Errore rilevato sul bot!';
+        const message = url.searchParams.get('message') || 'Error detected on the bot!';
 
         try {
             const guild = client.guilds.cache.first();
