@@ -16,7 +16,6 @@
     "@discordjs/voice": "^0.19.2",
     "discord.js": "^14.24.2",
     "dotenv": "^10.0.0",
-    "ffmpeg-static": "^4.4.1",
     "libsodium-wrappers": "^0.8.2",
     "opusscript": "^0.0.8",
     "sodium-native": "^5.1.0",
@@ -26,6 +25,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
+    "ffmpeg-static": "^4.4.1",
     "ts-node": "^10.9.1",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.1.6"

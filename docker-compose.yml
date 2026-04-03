@@ -1,6 +1,7 @@
 services:
   discord-bot:
     image: groovebox:latest
+    pull_policy: never
     container_name: groovebox
     restart: unless-stopped
     ports:
@@ -11,6 +12,8 @@ services:
       SPOTIFY_CLIENT_SECRET: ""
       DISCORD_CLIENT_ID: ""
       DISCORD_GUILD_ID: ""
+      TELEGRAM_BOT_TOKEN: ""
+      TELEGRAM_CHAT_ID: ""
 
     # Optional: enable GELF logging to Graylog
     # logging:

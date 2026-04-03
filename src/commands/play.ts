@@ -9,8 +9,9 @@ import path from 'path';
 import GuildPlayer from '../audio/guildPlayer';
 import { spawn } from 'child_process';
 import { Readable, PassThrough } from 'stream';
-// @ts-ignore
-import ffmpegPath from 'ffmpeg-static';
+// ffmpeg-static è opzionale: usato solo su Windows in dev, in container c'è ffmpeg da apt
+let ffmpegPath: string | null = null;
+try { ffmpegPath = require('ffmpeg-static'); } catch {}
 import { ChildProcess } from 'child_process';
 
 export const execute = async (interaction: ChatInputCommandInteraction, args: string[] = []) => {

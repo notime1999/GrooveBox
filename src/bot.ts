@@ -166,6 +166,7 @@ client.on('interactionCreate', async (interaction) => {
 handleReady(client);
 
 client.once('ready', () => {
+    try { console.log(`[bot] Build: ${require('fs').readFileSync('/app/.builddate','utf8').trim()}`); } catch { }
     startAlertServer(client);
 });
 

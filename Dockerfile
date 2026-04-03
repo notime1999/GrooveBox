@@ -1,27 +1,42 @@
-FROM node:20-slim
+# Stage 1: build (con build tools e devDependencies)
+FROM node:20-slim AS builder
 
-# python3 + build tools for native modules (sodium-native), ffmpeg for audio, wget for yt-dlp
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     python3 \
     make \
-    g++ \
+    g++ && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY package.json package-lock.json* ./
+RUN npm ci
+COPY . .
+RUN npm run build && npm prune --omit=dev
+
+# Stage 2: runtime (solo ciò che serve in produzione)
+FROM node:20-slim
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
     ffmpeg \
     wget \
     ca-certificates && \
+    wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux -O /usr/local/bin/yt-dlp && \
+    chmod a+rx /usr/local/bin/yt-dlp && \
+    apt-get purge -y wget ca-certificates && \
+    apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 
-# Latest yt-dlp binary
-RUN wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O /usr/local/bin/yt-dlp && \
-    chmod a+rx /usr/local/bin/yt-dlp
-
 WORKDIR /app
+COPY package.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/dist ./dist
 
-COPY package.json package-lock.json* ./
-RUN npm ci
+# Sostituisce il yt-dlp bundlato da youtube-dl-exec (script Python) con il binario standalone
+RUN ln -sf /usr/local/bin/yt-dlp /app/node_modules/youtube-dl-exec/bin/yt-dlp
 
-COPY . .
-
-RUN npm run build
+ARG BUILD_DATE=unknown
+RUN echo "${BUILD_DATE}" > /app/.builddate
 
 CMD ["/bin/sh", "-c", "yt-dlp -U 2>/dev/null || true && node dist/bot.js"]
