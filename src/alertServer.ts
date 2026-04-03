@@ -2,6 +2,7 @@ import http from 'http';
 import { Client, TextChannel } from 'discord.js';
 
 const ALERT_PORT = 3000;
+// Change this to the name of the Discord text channel where alerts should be posted
 const ALERT_CHANNEL_NAME = 'bot_channel';
 
 export function startAlertServer(client: Client) {
@@ -25,7 +26,7 @@ export function startAlertServer(client: Client) {
 
             if (!channel) throw new Error(`Channel '${ALERT_CHANNEL_NAME}' not found`);
 
-            await channel.send(`🚨 **ALERT BOT** 🚨\n${message}`);
+            await channel.send(`**[ALERT]** ${message}`);
             res.writeHead(200);
             res.end('OK');
         } catch (e) {

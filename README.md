@@ -34,7 +34,7 @@ Discord music bot with YouTube and Spotify support, interactive queue controls, 
 
 ```bash
 git clone <repo-url>
-cd sexyMusic4SexyServerPublic
+cd groovebox
 npm install
 ```
 
@@ -99,6 +99,8 @@ logging:
 ```
 
 The bot also exposes an HTTP endpoint on port `3000` (`/alert?message=...`) that Graylog can call via HTTP Notification to post alert messages directly into a Discord channel.
+
+Before building, set `ALERT_CHANNEL_NAME` in `src/alertServer.ts` to the name of the Discord text channel where alerts should be posted.
 
 ## Troubleshooting
 
