@@ -3,6 +3,8 @@ import 'dotenv/config';
 import handleReady from './events/ready';
 import { startAlertServer } from './alertServer';
 import GuildPlayer from './audio/guildPlayer';
+import { loadQueueState, clearQueueState } from './utils/queueState';
+import { joinVoiceChannel } from '@discordjs/voice';
 import {
     EmbedBuilder,
     ActionRowBuilder,
@@ -165,9 +167,56 @@ client.on('interactionCreate', async (interaction) => {
 
 handleReady(client);
 
-client.once('ready', () => {
+client.once('ready', async () => {
     try { console.log(`[bot] Build: ${require('fs').readFileSync('/app/.builddate','utf8').trim()}`); } catch { }
     startAlertServer(client);
+
+    // Restore queue state from previous restart (if any)
+    const savedState = loadQueueState();
+    if (savedState) {
+        clearQueueState();
+        console.log('[bot] Restoring queue state for guild:', savedState.guildId);
+        try {
+            const guild = await client.guilds.fetch(savedState.guildId);
+            const voiceChannel = await guild.channels.fetch(savedState.voiceChannelId) as any;
+            if (!voiceChannel) throw new Error('Voice channel not found');
+
+            const gp = GuildPlayer.create(savedState.guildId, voiceChannel);
+            gp.startedBy = savedState.startedBy;
+            gp.lastAction = savedState.lastAction;
+            if (savedState.queueChannelId) gp.queueChannelId = savedState.queueChannelId;
+            if (savedState._playlistTracks) gp._playlistTracks = savedState._playlistTracks;
+            if (savedState._playlistPointer !== undefined) gp._playlistPointer = savedState._playlistPointer;
+            if (savedState._playlistId) gp._playlistId = savedState._playlistId;
+            if (savedState._lastRequester) gp._lastRequester = savedState._lastRequester;
+
+            const connection = joinVoiceChannel({
+                channelId: voiceChannel.id,
+                guildId: savedState.guildId,
+                adapterCreator: guild.voiceAdapterCreator as any,
+            });
+            gp.connection = connection;
+            connection.subscribe(gp.player);
+
+            for (const track of savedState.queue) {
+                gp.enqueue(track, false);
+            }
+
+            await gp.playNext();
+
+            // Notify the channel that we're back
+            if (savedState.queueChannelId) {
+                const channel = await client.channels.fetch(savedState.queueChannelId);
+                if (channel && channel.isTextBased()) {
+                    await (channel as any).send('✅ **Bot riavviato!** Ripristino la coda e riprendo la riproduzione...');
+                }
+            }
+
+            console.log('[bot] Queue restored successfully,', savedState.queue.length, 'tracks re-enqueued');
+        } catch (e) {
+            console.error('[bot] Failed to restore queue state:', e);
+        }
+    }
 });
 
 client.login(process.env.DISCORD_TOKEN);

@@ -15,6 +15,9 @@ services:
       TELEGRAM_BOT_TOKEN: ""
       TELEGRAM_CHAT_ID: ""
 
+    volumes:
+      - ./data:/app/data
+
     # Optional: enable GELF logging to Graylog
     # logging:
     #   driver: gelf

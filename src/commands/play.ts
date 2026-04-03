@@ -606,28 +606,42 @@ export async function streamWithYoutubeDl(videoUrl: string): Promise<{ stream: R
 
         console.log('[play] Extracting direct URL for:', videoUrl);
 
-        // Step 1: get direct stream URL from yt-dlp
-        const directUrl = await new Promise<string>((resolve, reject) => {
-            const proc = spawn(ytdlpBinaryPath, [
-                '-f', '18',
-                '--extractor-args', 'youtube:player_client=android_vr',
-                '--get-url',
-                '--no-warnings',
-                videoUrl,
-            ], { stdio: ['ignore', 'pipe', 'pipe'] });
+        // Step 1: get direct stream URL from yt-dlp, try multiple clients
+        const clients = ['mweb', 'android_vr', 'web'];
+        let directUrl = '';
+        let lastErr = '';
 
-            let out = '';
-            proc.stdout.on('data', (d: Buffer) => { out += d.toString(); });
-            proc.stderr.on('data', (d: Buffer) => {
-                const msg = d.toString().trim();
-                if (msg) console.error('[yt-dlp get-url]', msg);
+        for (const client of clients) {
+            const result = await new Promise<{ url: string; err: string }>((resolve) => {
+                let out = '';
+                let stderrBuf = '';
+                const proc = spawn(ytdlpBinaryPath, [
+                    '-f', 'bestaudio/best',
+                    '--extractor-args', `youtube:player_client=${client}`,
+                    '--get-url',
+                    '--no-warnings',
+                    videoUrl,
+                ], { stdio: ['ignore', 'pipe', 'pipe'] });
+                proc.stdout.on('data', (d: Buffer) => { out += d.toString(); });
+                proc.stderr.on('data', (d: Buffer) => {
+                    const msg = d.toString().trim();
+                    if (msg) { stderrBuf += msg + '\n'; console.error(`[yt-dlp get-url][${client}]`, msg); }
+                });
+                proc.on('close', (code) => resolve({ url: code === 0 ? out.trim().split('\n')[0] : '', err: stderrBuf }));
+                proc.on('error', (e) => resolve({ url: '', err: e.message }));
             });
-            proc.on('close', (code) => {
-                if (code !== 0 || !out.trim()) return reject(new Error(`yt-dlp get-url failed with code ${code}`));
-                resolve(out.trim().split('\n')[0]);
-            });
-            proc.on('error', reject);
-        });
+
+            if (result.url) {
+                console.log(`[play] Got URL with client=${client}`);
+                directUrl = result.url;
+                break;
+            }
+            lastErr = result.err;
+        }
+
+        if (!directUrl) {
+            throw new Error(`yt-dlp get-url failed on all clients: ${lastErr.slice(0, 200)}`)
+        }
 
         console.log('[play] Got direct URL, starting ffmpeg');
 

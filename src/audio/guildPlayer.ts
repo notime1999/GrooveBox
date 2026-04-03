@@ -1,6 +1,7 @@
 import { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayer, AudioPlayerStatus, NoSubscriberBehavior, entersState, VoiceConnection, VoiceConnectionStatus, StreamType, AudioResource } from '@discordjs/voice';
 import { VoiceBasedChannel, Client, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { ChildProcess } from 'child_process';
+import { saveQueueState } from '../utils/queueState';
 
 export interface Track {
     url: string;
@@ -39,6 +40,8 @@ export default class GuildPlayer {
     private stopped = false;
     private activeYtdlpProcess: ChildProcess | null = null;
     private activeFFmpegProcess: ChildProcess | null = null;
+    private consecutiveFailures: number = 0;
+    private static readonly RESTART_THRESHOLD = 3;
 
     private constructor(guildId: string, voiceChannel: VoiceBasedChannel) {
         this.guildId = guildId;
@@ -351,7 +354,7 @@ export default class GuildPlayer {
                 resource = createAudioResource(streamResult.stream, {
                     inputType: StreamType.OggOpus,
                 });
-                
+
                 // Add error handlers
                 streamResult.stream.on('error', (err: any) => {
                     // Ignore "Premature close" errors - these happen during skip and are normal
@@ -360,40 +363,35 @@ export default class GuildPlayer {
                     }
                     console.error('[GuildPlayer] Stream error:', err.message);
                 });
-                
+
                 streamResult.stream.on('end', () => {
                     // Stream ended naturally
                 });
-                
+
                 streamResult.stream.on('close', () => {
                     // Stream closed
                 });
-                
+
+                this.consecutiveFailures = 0; // Reset on success
                 console.log('[GuildPlayer] Created audio resource from youtube-dl-exec');
                 break; // Success, exit retry loop
-                
+
             } catch (err: any) {
                 retries--;
                 console.error(`[GuildPlayer] Attempt ${4 - retries - 1} failed:`, err.message);
-
-                // Not authenticated — stop queue and notify channel
-                if (err.message === 'NOT_AUTHENTICATED') {
-                    console.error('[GuildPlayer] YouTube not authenticated, stopping queue');
-                    await this.notifyChannel(
-                        '**YouTube authentication required.**\n' +
-                        'The bot cannot stream music because it is not logged in to YouTube.\n' +
-                        'An admin must run `/youtube-login` to authenticate.'
-                    );
-                    this.queue = [];
-                    this.currentTrack = null;
-                    return;
-                }
 
                 if (retries > 0) {
                     console.log(`[GuildPlayer] Retrying in 2 seconds... (${retries} attempts left)`);
                     await new Promise(resolve => setTimeout(resolve, 2000));
                 } else {
-                    console.error('[GuildPlayer] All retry attempts failed, skipping track');
+                    this.consecutiveFailures++;
+                    console.error(`[GuildPlayer] All retry attempts failed, skipping track (consecutive failures: ${this.consecutiveFailures}/${GuildPlayer.RESTART_THRESHOLD})`);
+
+                    if (this.consecutiveFailures >= GuildPlayer.RESTART_THRESHOLD) {
+                        await this.triggerRestart();
+                        return;
+                    }
+
                     await this.playNext();
                     return;
                 }
@@ -600,6 +598,36 @@ export default class GuildPlayer {
         } catch (err) {
             console.error('[GuildPlayer] Failed to update queue message:', err);
         }
+    }
+
+    private async triggerRestart(): Promise<void> {
+        console.log('[GuildPlayer] Too many consecutive failures — saving queue and restarting...');
+
+        // Save remaining queue — skip currentTrack since it's the one that caused failures
+        const tracksToSave = [...this.queue];
+
+        saveQueueState({
+            guildId: this.guildId,
+            voiceChannelId: this.voiceChannel.id,
+            queueChannelId: this.queueChannelId,
+            queue: tracksToSave,
+            currentTrack: null,
+            startedBy: this.startedBy,
+            lastAction: this.lastAction,
+            _playlistTracks: this._playlistTracks,
+            _playlistPointer: this._playlistPointer,
+            _playlistId: this._playlistId,
+            _lastRequester: this._lastRequester,
+        });
+
+        await this.notifyChannel(
+            '⚠️ **YouTube sta bloccando lo streaming.** Sto riavviando per ripristinare la connessione...\n' +
+            '🔁 La coda verrà ripristinata automaticamente tra qualche secondo!'
+        );
+
+        // Small delay so the message is sent before we exit
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        process.exit(1);
     }
 
     private async notifyChannel(message: string): Promise<void> {
