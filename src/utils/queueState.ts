@@ -17,6 +17,8 @@ export interface QueueState {
     _playlistPointer?: number;
     _playlistId?: string;
     _lastRequester?: string;
+    restartCount?: number;
+    lastRestartTimestamp?: number;
 }
 
 export function saveQueueState(state: QueueState): void {

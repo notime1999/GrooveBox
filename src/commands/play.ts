@@ -607,7 +607,9 @@ export async function streamWithYoutubeDl(videoUrl: string): Promise<{ stream: R
         console.log('[play] Extracting direct URL for:', videoUrl);
 
         // Step 1: get direct stream URL from yt-dlp, try multiple clients
-        const clients = ['mweb', 'android_vr', 'web'];
+        // android_vr first — most reliable; mweb/web as fallbacks
+        // Format: try common audio itags first (251=webm/opus, 140=m4a), then bestaudio, then best
+        const clients = ['android_vr', 'mweb', 'web', 'ios'];
         let directUrl = '';
         let lastErr = '';
 
@@ -616,7 +618,7 @@ export async function streamWithYoutubeDl(videoUrl: string): Promise<{ stream: R
                 let out = '';
                 let stderrBuf = '';
                 const proc = spawn(ytdlpBinaryPath, [
-                    '-f', 'bestaudio/best',
+                    '-f', '251/140/bestaudio/best',
                     '--extractor-args', `youtube:player_client=${client}`,
                     '--get-url',
                     '--no-warnings',

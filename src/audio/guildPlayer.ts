@@ -1,7 +1,7 @@
 import { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayer, AudioPlayerStatus, NoSubscriberBehavior, entersState, VoiceConnection, VoiceConnectionStatus, StreamType, AudioResource } from '@discordjs/voice';
 import { VoiceBasedChannel, Client, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { ChildProcess } from 'child_process';
-import { saveQueueState } from '../utils/queueState';
+import { saveQueueState, loadQueueState, clearQueueState } from '../utils/queueState';
 
 export interface Track {
     url: string;
@@ -601,9 +601,38 @@ export default class GuildPlayer {
     }
 
     private async triggerRestart(): Promise<void> {
-        console.log('[GuildPlayer] Too many consecutive failures — saving queue and restarting...');
+        console.log('[GuildPlayer] Too many consecutive failures — checking restart rate limit...');
 
-        // Save remaining queue — skip currentTrack since it's the one that caused failures
+        const MAX_RESTARTS = 3;
+        const WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+
+        // Load existing state to read restart counters
+        const existingState = loadQueueState();
+        const now = Date.now();
+        const lastTs = existingState?.lastRestartTimestamp ?? 0;
+        const restartCount = existingState?.restartCount ?? 0;
+
+        const withinWindow = (now - lastTs) < WINDOW_MS;
+        const restartsInWindow = withinWindow ? restartCount : 0;
+
+        if (restartsInWindow >= MAX_RESTARTS) {
+            // Too many restarts — give up
+            console.log(`[GuildPlayer] Restart limit reached (${restartsInWindow}/${MAX_RESTARTS} in 10 min). Giving up.`);
+            clearQueueState();
+            await this.notifyChannel(
+                '🚫 **YouTube sta bloccando completamente l\'IP del server.**\n' +
+                'Il bot non riesce a recuperare la connessione dopo più tentativi.\n' +
+                'La coda è stata cancellata. Riprova più tardi o contatta un admin.'
+            );
+            // Stop cleanly without restarting
+            this.queue = [];
+            this.currentTrack = null;
+            this.player.stop(true);
+            return;
+        }
+
+        // Proceed with restart — save queue and increment counter
+        console.log(`[GuildPlayer] Restart ${restartsInWindow + 1}/${MAX_RESTARTS} — saving queue and restarting...`);
         const tracksToSave = [...this.queue];
 
         saveQueueState({
@@ -618,14 +647,15 @@ export default class GuildPlayer {
             _playlistPointer: this._playlistPointer,
             _playlistId: this._playlistId,
             _lastRequester: this._lastRequester,
+            restartCount: restartsInWindow + 1,
+            lastRestartTimestamp: withinWindow ? lastTs : now,
         });
 
         await this.notifyChannel(
-            '⚠️ **YouTube sta bloccando lo streaming.** Sto riavviando per ripristinare la connessione...\n' +
+            `⚠️ **YouTube sta bloccando lo streaming.** Sto riavviando per ripristinare la connessione... (tentativo ${restartsInWindow + 1}/${MAX_RESTARTS})\n` +
             '🔁 La coda verrà ripristinata automaticamente tra qualche secondo!'
         );
 
-        // Small delay so the message is sent before we exit
         await new Promise(resolve => setTimeout(resolve, 2000));
         process.exit(1);
     }
